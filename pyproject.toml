@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dictateanywhere"
+version = "0.1.0"
+description = "Offline push-to-talk dictation for Windows and Linux/X11"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Ivan Pestov"}]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: X11 Applications",
+  "Environment :: Win32 (MS Windows)",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+dependencies = [
+  "faster-whisper>=1.1,<2",
+  "numpy>=1.26,<3",
+  "pillow>=10,<13",
+  "pynput>=1.7,<2",
+  "pyperclip>=1.8,<2",
+  "pystray>=0.19,<1",
+  "sounddevice>=0.5,<1",
+]
+
+[project.scripts]
+dictateanywhere = "dictateanywhere.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
