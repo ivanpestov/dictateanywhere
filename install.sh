@@ -55,6 +55,6 @@ Categories=Utility;Accessibility;
 EOF
 
 nohup "$PREFIX/venv/bin/dictateanywhere" >/dev/null 2>&1 &
-printf '\nInstallation complete. Press Windows+W to start and stop dictation.\n'
+printf '\nInstallation complete. Press F2 to start and stop dictation.\n'
 printf 'Settings: %s/config.json\n' "$PREFIX"
 printf 'To uninstall, run ./uninstall.sh from the source tree.\n'

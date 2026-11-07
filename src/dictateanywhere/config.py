@@ -7,7 +7,7 @@ from pathlib import Path
 
 @dataclass
 class Settings:
-    hotkey: str = "win+w"
+    hotkey: str = "f2"
     language: str = "ru"
     model: str = "small"
     device: str = "auto"
