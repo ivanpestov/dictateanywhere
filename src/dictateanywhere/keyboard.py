@@ -1,5 +1,104 @@
+import logging
 import re
+import subprocess
+import sys
 import time
+
+_TERMINAL_MARKERS = (
+    "terminal",
+    "ghostty",
+    "xterm",
+    "kitty",
+    "alacritty",
+    "konsole",
+    "wezterm",
+    "tilix",
+    "terminator",
+    "urxvt",
+    "rxvt",
+    "kgx",
+    "hyper",
+)
+
+
+def _active_window_details():
+    if not sys.platform.startswith("linux"):
+        return None
+    try:
+        from Xlib import X, display
+
+        connection = display.Display()
+        try:
+            root = connection.screen().root
+            active = root.get_full_property(
+                connection.intern_atom("_NET_ACTIVE_WINDOW"),
+                X.AnyPropertyType,
+            )
+            if active is None or not len(active.value):
+                return None
+            window = connection.create_resource_object("window", active.value[0])
+            names = [name.lower() for name in (window.get_wm_class() or ())]
+            hints = {}
+            for name in ("_GTK_UNIQUE_BUS_NAME", "_GTK_WINDOW_OBJECT_PATH"):
+                value = window.get_full_property(
+                    connection.intern_atom(name), X.AnyPropertyType
+                )
+                if value is not None:
+                    hints[name] = value.value.decode()
+            return names, hints
+        finally:
+            connection.close()
+    except Exception:
+        return None
+
+
+def _terminal_window_active() -> bool:
+    details = _active_window_details()
+    if details is None:
+        return False
+    names, _ = details
+    return any(
+        name == "st" or any(marker in name for marker in _TERMINAL_MARKERS)
+        for name in names
+    )
+
+
+def _paste_ghostty() -> bool:
+    details = _active_window_details()
+    if details is None:
+        return False
+    names, hints = details
+    if not any("ghostty" in name for name in names):
+        return False
+    bus_name = hints.get("_GTK_UNIQUE_BUS_NAME")
+    object_path = hints.get("_GTK_WINDOW_OBJECT_PATH")
+    if not bus_name or not object_path:
+        return False
+    try:
+        subprocess.run(
+            [
+                "gdbus",
+                "call",
+                "--session",
+                "--dest",
+                bus_name,
+                "--object-path",
+                object_path,
+                "--method",
+                "org.gtk.Actions.Activate",
+                "paste",
+                "[]",
+                "{}",
+            ],
+            capture_output=True,
+            check=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        logging.exception("Could not activate the Ghostty paste action")
+        return False
+    return True
+
 
 _KEY_NAMES = {
     "alt": "<alt>",
@@ -78,10 +177,14 @@ class TextInserter:
 
         pyperclip.copy(text)
         keyboard = Controller()
-        time.sleep(0.08)
-        with keyboard.pressed(Key.ctrl):
-            keyboard.press("v")
-            keyboard.release("v")
+        if not _paste_ghostty():
+            modifiers = [Key.ctrl]
+            if _terminal_window_active():
+                modifiers.append(Key.shift)
+            time.sleep(0.08)
+            with keyboard.pressed(*modifiers):
+                keyboard.press("v")
+                keyboard.release("v")
         if send:
             time.sleep(0.12)
             keyboard.press(Key.enter)

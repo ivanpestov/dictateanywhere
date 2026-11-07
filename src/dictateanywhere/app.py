@@ -72,8 +72,8 @@ class DictationController:
                 self.banner.show("No speech detected.", "info", 2)
                 return
             TextInserter.insert(text, send=self.settings.auto_send)
-            logging.info("Inserted %s recognized characters", len(text))
-            self.banner.show("Text inserted.", "ready", 1.5)
+            logging.info("Sent paste for %s recognized characters", len(text))
+            self.banner.show("Paste sent to the active window.", "ready", 1.5)
         except Exception:
             logging.exception("Could not complete dictation")
             self.banner.show("Dictation failed. See the log file.", "error", 5)
