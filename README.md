@@ -6,8 +6,8 @@ at the current cursor position. Audio is processed locally with Whisper through
 `faster-whisper`; no speech is sent to a cloud service.
 
 The application supports Windows and Linux with an X11 session. The default
-language is Russian, the default hotkey is **Windows+W** (Super+W on Linux), and
-the default Whisper model is `small`.
+language is Russian, the default hotkey is **F2**, and the default Whisper
+model is `small`.
 
 ## Features
 
@@ -60,11 +60,14 @@ compatible NVIDIA driver plus the CUDA libraries required by `faster-whisper`.
 ## Usage
 
 1. Place the text cursor in any application.
-2. Press **Windows+W**. A red status banner indicates active recording.
+2. Press **F2**. A red status banner indicates active recording.
 3. Speak.
-4. Press **Windows+W** again. After transcription, the text is pasted at the
+4. Press **F2** again. After transcription, the text is pasted at the
    cursor.
 5. Review the text before sending it.
+
+On X11, the configured hotkey is reserved by DictateAnywhere and is not sent
+to the active application.
 
 The tray icon can also start or stop dictation, open the settings file, and
 quit the application. On Linux, supported terminal windows are detected
@@ -87,7 +90,7 @@ On Windows, the file is located at:
 
 | Setting | Default | Description |
 |---|---|---|
-| `hotkey` | `"win+w"` | Global shortcut, such as `f8` or `ctrl+alt+space` |
+| `hotkey` | `"f2"` | Global shortcut, such as `f2` or `ctrl+alt+space` |
 | `language` | `"ru"` | Whisper language code |
 | `model` | `"small"` | Whisper model name supported by faster-whisper |
 | `device` | `"auto"` | `auto`, `cpu`, or `cuda` |

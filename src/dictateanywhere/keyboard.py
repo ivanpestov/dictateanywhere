@@ -142,12 +142,129 @@ def normalize_shortcut(value: str) -> str:
     return "+".join(result)
 
 
+_X11_KEYSYMS = {
+    "<space>": "space",
+    "<enter>": "Return",
+    "<tab>": "Tab",
+    "<backspace>": "BackSpace",
+    "<esc>": "Escape",
+    "<insert>": "Insert",
+    "<delete>": "Delete",
+    "<home>": "Home",
+    "<end>": "End",
+    "<page_up>": "Page_Up",
+    "<page_down>": "Page_Down",
+    "<up>": "Up",
+    "<down>": "Down",
+    "<left>": "Left",
+    "<right>": "Right",
+}
+
+
+class _X11HotkeyGrab:
+    def __init__(self, shortcut: str) -> None:
+        self._shortcut = shortcut
+        self._connection = None
+        self._keycode = None
+        self._modifiers = []
+
+    def start(self) -> None:
+        if self._connection is not None:
+            return
+        from Xlib import X, XK, display
+
+        modifier_masks = {
+            "<alt>": X.Mod1Mask,
+            "<ctrl>": X.ControlMask,
+            "<shift>": X.ShiftMask,
+            "<cmd>": X.Mod4Mask,
+        }
+        tokens = normalize_shortcut(self._shortcut).split("+")
+        modifiers = 0
+        for token in tokens[:-1]:
+            if token not in modifier_masks:
+                raise ValueError(f"Invalid hotkey modifier: {token!r}")
+            modifiers |= modifier_masks[token]
+        key = tokens[-1]
+        if len(key) == 1:
+            keysym = ord(key)
+            if keysym >= 0x100:
+                keysym |= 0x01000000
+        else:
+            key_name = _X11_KEYSYMS.get(key)
+            if key_name is None and re.fullmatch(r"<f\d{1,2}>", key):
+                key_name = key[1:-1].upper()
+            keysym = XK.string_to_keysym(key_name) if key_name else 0
+        if not keysym:
+            raise ValueError(f"Unsupported X11 hotkey: {self._shortcut!r}")
+
+        connection = display.Display()
+        try:
+            keycode = connection.keysym_to_keycode(keysym)
+            if not keycode:
+                raise ValueError(f"Unsupported X11 hotkey: {self._shortcut!r}")
+            variants = [
+                modifiers | caps | num
+                for caps in (0, X.LockMask)
+                for num in (0, X.Mod2Mask)
+            ]
+            root = connection.screen().root
+            for variant in variants:
+                root.grab_key(
+                    keycode,
+                    variant,
+                    False,
+                    X.GrabModeAsync,
+                    X.GrabModeAsync,
+                )
+            connection.sync()
+        except Exception:
+            connection.close()
+            raise
+
+        self._connection = connection
+        self._keycode = keycode
+        self._modifiers = variants
+
+    def drain(self) -> None:
+        if self._connection is None:
+            return
+        self._connection.sync()
+        while self._connection.pending_events():
+            self._connection.next_event()
+
+    def stop(self) -> None:
+        if self._connection is None:
+            return
+        try:
+            root = self._connection.screen().root
+            for modifiers in self._modifiers:
+                root.ungrab_key(self._keycode, modifiers)
+            self._connection.sync()
+        finally:
+            self._connection.close()
+            self._connection = None
+            self._keycode = None
+            self._modifiers = []
+
+
 class HotkeyService:
     def __init__(self, shortcut: str, callback) -> None:
         from pynput import keyboard
 
+        self._grab = (
+            _X11HotkeyGrab(shortcut) if sys.platform.startswith("linux") else None
+        )
+
+        def activated() -> None:
+            try:
+                callback()
+            finally:
+                if self._grab is not None:
+                    self._grab.drain()
+
         keys = keyboard.HotKey.parse(normalize_shortcut(shortcut))
-        self._hotkey = keyboard.HotKey(keys, callback)
+        self._hotkey = keyboard.HotKey(keys, activated)
         self._listener = None
         self._keyboard = keyboard
 
@@ -160,13 +277,28 @@ class HotkeyService:
         def released(key) -> None:
             self._hotkey.release(self._listener.canonical(key))
 
-        self._listener = keyboard.Listener(on_press=pressed, on_release=released)
-        self._listener.start()
+        try:
+            self._listener = keyboard.Listener(on_press=pressed, on_release=released)
+            self._listener.start()
+            self._listener.wait()
+            if self._grab is not None:
+                self._grab.start()
+        except Exception:
+            if self._listener is not None:
+                self._listener.stop()
+                self._listener = None
+            if self._grab is not None:
+                self._grab.stop()
+            raise
 
     def stop(self) -> None:
-        if self._listener is not None:
-            self._listener.stop()
-            self._listener = None
+        try:
+            if self._listener is not None:
+                self._listener.stop()
+                self._listener = None
+        finally:
+            if self._grab is not None:
+                self._grab.stop()
 
 
 class TextInserter:
