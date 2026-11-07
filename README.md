@@ -67,7 +67,9 @@ compatible NVIDIA driver plus the CUDA libraries required by `faster-whisper`.
 5. Review the text before sending it.
 
 The tray icon can also start or stop dictation, open the settings file, and
-quit the application.
+quit the application. On Linux, supported terminal windows are detected
+automatically. Ghostty uses its native D-Bus paste action when available;
+other terminals receive **Ctrl+Shift+V** instead of the usual **Ctrl+V**.
 
 ## Settings
 

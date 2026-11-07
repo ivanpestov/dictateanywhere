@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dictateanywhere"
-version = "0.1.0"
+version = "0.1.1"
 description = "Offline push-to-talk dictation for Windows and Linux/X11"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,6 +27,7 @@ dependencies = [
   "pynput>=1.7,<2",
   "pyperclip>=1.8,<2",
   "pystray>=0.19,<1",
+  "python-xlib>=0.17; platform_system == 'Linux'",
   "sounddevice>=0.5,<1",
 ]
 
